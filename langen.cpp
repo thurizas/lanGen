@@ -16,7 +16,7 @@
 #include <QToolBar>
 #include <QFileDialog>
 
-#include <qdebug>
+#include <QDebug>
 
 #include <errno.h>
 

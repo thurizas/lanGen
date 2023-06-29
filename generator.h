@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QPair>
-#include <Qdebug>
+#include <QDebug>
 
 #include <vector>
 #include <iostream>

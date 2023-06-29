@@ -6,7 +6,7 @@
 #include <QToolBar>
 #include <QMessageBox>
 #include <QIntValidator>
-#include <qdebug>
+#include <QDebug>
 
 QString classes="C,V,";
 

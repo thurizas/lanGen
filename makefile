@@ -73,6 +73,7 @@ main.o : main.cpp
 clean :
 	rm -f *.o
 	rm -f *.*~
+	rm -f moc_*
 	rm -f $(PROG)
 
 

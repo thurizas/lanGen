@@ -1,6 +1,8 @@
 #include "langen.h"
 #include "DataEntry.h"
 #include "editGlyphDlg.h"
+#include "datafile.h"
+#include "constants.h"
 
 #include <QVariant>
 #include <QAction>
@@ -16,7 +18,7 @@
 #include <QToolBar>
 #include <QFileDialog>
 
-#include <QDebug>
+#include <qdebug>
 
 #include <errno.h>
 
@@ -53,7 +55,6 @@ LanGen::~LanGen()
 void LanGen::setupUI()
 {
     QWidget *centralwidget;
-    //QTextEdit *textEdit;
     QMenuBar *menubar;
     QStatusBar *statusbar;
 
@@ -216,92 +217,39 @@ void LanGen::onFileNew()
  * written :
  *********************************************************************************************************************/
 void LanGen::onFileOpen()     
-{ 
-    QString strFileName = QFileDialog::getOpenFileName(this, "Open language file", "./", "Language Files (*.pho);;All Files (*.*)");
-    QFile inFile(strFileName);
+{  
+  m_pWidget->clear();
+  QString strFileName = QFileDialog::getOpenFileName(this, "Open language file", "./", "Language Files (*.pho);;All Files (*.*)");
 
-    m_pWidget->clear();
+  if (datafile::isValid(strFileName))                       // we have a valid language definition file to use
+  {
+    m_qstrFileName = strFileName;
 
-    if (inFile.open(QIODevice::ReadOnly))
+    datafile  infile(m_qstrFileName);
+    if (infile.open(datafile::mode::READ))
     {
-        unsigned int cntVowels;
-        unsigned int cntCons;
+      fileHdr      hdr;
+      infile.readHeader(&hdr);
 
-        QDataStream in(&inFile);
+      QVector<QChar> vecVowels = infile.readVowels();
+      m_pWidget->setVowels(&vecVowels);
 
-        in >> cntCons;
-        //qDebug() << "found: " << cntCons << "consonents";
-        for (unsigned int ndx = 0; ndx < cntCons; ndx++)
-        {
-            QChar  qch;
-            in >> qch;
-            emit onNewConsonant(qch);
-        }
+      QVector<QChar> vecConsonants = infile.readConsonants();
+      m_pWidget->setConsonants(&vecConsonants);
 
-        // read in the vowels...
-        in >> cntVowels;
-        //qDebug() << "found: " << cntVowels << " vowels";
+      QString rules = infile.readRules();
+      m_pWidget->setRule(rules);
 
-        for (unsigned int ndx = 0; ndx < cntVowels; ndx++)
-        {
-            QChar  qch;
-            in >> qch;
+      if (hdr.e_id[4] == 2)                  // if we have a new version of file, supporting glyph header
+      {
+        QMap<QChar, ptblEntryT> xlationMap = infile.readGlyphs();
+        m_pWidget->setXlationMap(&xlationMap);
+      }
 
-            emit onNewVowel(qch);
-        }
 
-        // read in the rules...
-        QString qstrRules;
-        in >> qstrRules;
-        m_pWidget->setRule(qstrRules);
 
-        // read in the translation map
-        /*
-        00 00 00 0A 
-        01 00 65 00 65              len = 1, phoneme = 65    xlation =
-        01 00 69 00 69              len = 1, phoneme = 69    xlation =
-        01 00 6B 00 6B              len = 1, phoneme = 6B    xlation =
-        01 00 6F 00 6F              len = 1, phoneme = 6F    xlation =
-        01 00 70 00 70              len = 1, phoneme = 70    xlation =
-        01 00 74 00 74              len = 1, phoneme = 74    xlation =
-        02 02 56 00 74 00 68        len = 2, phoneme = 56 02 xlation =
-        03 02 6E 00 74 00 73 00 63  len = 3, phoneme = 6E 02 xlation =
-        02 02 A7 00 74 00 73        len = 2, phoneme = A7 02 xlation =
-        02 03 C7 00 63 00 68        len = 2, phoneme = C7 03 xlation =                                  
-        */
-        
-        int cntXlations;
-        in >> cntXlations;             // read in number of translations..
-        QMap<QChar, QString>         mXlations;
-        for (int ndx = 0; ndx < cntXlations; ndx++)
-        {
-            unsigned char   size;
-            QChar           phoneme;
-            QChar           qchGlyph;
-            QString glyph = "";
-
-            in >> size;         // get size of glyph
-            in >> phoneme;
-            for (int jdx = 0; jdx < size; jdx++)
-            {
-                in >> qchGlyph;
-                glyph += qchGlyph;
-            }
-
-            mXlations.insert(phoneme, glyph);
-        }
-        m_pWidget->setXlationMap(&mXlations);
-
-        m_qstrFileName = strFileName;
-
-        // adjust the title of the window to reflect the file being used
-        this->setWindowTitle(QString("Language Generator - %1").arg(strFileName));
     }
-    else
-    {
-        QString   errMsg = inFile.errorString();
-        qDebug() << "failed to open file" << errMsg;
-    }
+  }
 }
 
 
@@ -319,99 +267,21 @@ void LanGen::onFileOpen()
  *********************************************************************************************************************/
 void LanGen::onFileSave()     
 {
-    QVector<QChar>::iterator     viter;
-
-    if(m_qstrFileName != "")      // we already have a file name, do it...
+    if (m_qstrFileName != "")      // we already have a file name, do it...
     {
-        // TODO : we need to write a header out
-        //      : part of header should be number of consonants and offset to consonants
-        //      :                          number of vowels and offset to vowels
-        //      : phoneme to glyph translation offset and number of records
-        QFile  outFile(m_qstrFileName);
-    
-        if(outFile.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        {
-            QDataStream out(&outFile);
-        
-            // save off the consonants....
-            QVector<QChar>*   pVec = m_pWidget->getConsonants();
-            if(pVec->size() > 0)
-            {
-                out << pVec ->size();
-                viter = pVec->begin();
-                while(pVec->end() != viter)
-                {
-                    out << (*viter);
-                    ++viter;
-                }
-            }
-            else
-            {
-                qDebug() << "no consonants in languate";
-            }
+      datafile  outfile(m_qstrFileName);
+      if (outfile.open(datafile::mode::WRITE))
+      {
+        outfile.writeHeader(m_pWidget);
+        outfile.writeVowels(m_pWidget);
+        outfile.writeConsonants(m_pWidget);
+        outfile.writeRules(m_pWidget);
+        outfile.writeGlyphs(m_pWidget);
 
-            // save off the vowels....
-            pVec = m_pWidget->getVowels();
-            if(pVec->size() > 0)
-            {
-                out << pVec->size();
-                viter = pVec->begin();
-
-                while(pVec->end() != viter)
-                {
-                    out << (*viter);
-                    ++viter;
-                }
-            }
-            else
-            {
-                qDebug() << "no vowels in langage";
-            }
-
-            // save off the generation rule....
-            QString  qstrRules = m_pWidget->getRule();
-            if (qstrRules != "")
-            {
-                out << qstrRules;
-            }
-            else
-            {
-                qDebug() << "no structrual rules given";
-            }
-
-            // save off phonemes to glyphs mapping...
-            QMap<QChar, QString> xlateMap = m_pWidget->getXlationMap();
-            int cntXlations = xlateMap.size();
-            if (cntXlations > 0)
-            {
-                out << cntXlations;
-                //write each xlation  len( unsigned char 2 + strlen), phoneme (QChar, 2 bytes), mapping (char[len]);
-                QMap<QChar, QString>::iterator miter = xlateMap.begin();
-                while (xlateMap.end() != miter)
-                {
-                    unsigned char  valLen = miter.value().length();
-                    out << valLen;/* +2;*/
-                    out << miter.key();
-                    for(int ndx = 0; ndx < valLen; ndx++)
-                        out << (miter.value()).at(ndx);
-                    ++miter;
-                }
-            }
-            else
-            {
-                qDebug() << "no coversion rules supplied";
-            }
-        }
-        else
-        {
-            QString   errMsg = outFile.errorString();
-            qDebug() << "failed to open file" << errMsg;
-        }
-
-        outFile.close();                // we be done, close the file....
-
+        outfile.close();
+      }
     }
-    else      // we do not have a name, go get a name and try again...
+    else                          // we do not have a name, go get a name and try again...
     {
         onFileSaveAs();
     }
@@ -501,14 +371,14 @@ void LanGen::onFileSaveWords()
  *********************************************************************************************************************/
 void LanGen::onAlphabetGlyphs()
 {
-    CEditGlyphDlg dlg(m_pWidget->getVowels(), m_pWidget->getConsonants());
+    CEditGlyphDlg dlg(m_pWidget->getVowels(), m_pWidget->getConsonants(), &m_pWidget->getXlationMap());
 
-    if (m_pWidget->getXlationMap().size() > 0)                        // we have an xlation map
-        dlg.setXlationMap(&(m_pWidget->getXlationMap()));
+    //if (m_pWidget->getXlationMap().size() > 0)                        // we have an xlation map
+    //    dlg.setXlationMap(&(m_pWidget->getXlationMap()));
 
     if (QDialog::Accepted == dlg.exec())
     {
-        QMap<QChar, QString> xlateMap = dlg.getXlationMapping();      // get translation mapping
+        QMap<QChar, ptblEntryT> xlateMap = dlg.getXlationMapping();    // get translation mapping
         m_pWidget->setXlationMap(&xlateMap);                          // pass translation mapping to dataentry class 
     }
     else
@@ -536,7 +406,7 @@ void LanGen::onSyllabelGlyphs()
 
     // TODO : generate list of syllabels.
 
-    CEditGlyphDlg dlg(m_pWidget->getVowels(), m_pWidget->getConsonants());
+    CEditGlyphDlg dlg(m_pWidget->getVowels(), m_pWidget->getConsonants(), &m_pWidget->getXlationMap());
     if(QDialog::Accepted == dlg.exec())
     { 
         // TODO : build translation map                   

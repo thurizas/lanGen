@@ -4,6 +4,8 @@
 #include <QDialog>
 #include <QMap>
 
+#include "constants.h"
+
 
 class QTableWidget;
 class QPushButton;
@@ -13,11 +15,11 @@ class CEditGlyphDlg : public QDialog
     Q_OBJECT
 
 public:
-    CEditGlyphDlg( QVector<QChar>*,  QVector<QChar>*, QWidget* parent = nullptr);
+    CEditGlyphDlg( QVector<QChar>*,  QVector<QChar>*, QMap<QChar, ptblEntryT>*, QWidget* parent = nullptr);
     CEditGlyphDlg(QVector<QString>*, QWidget* parent = nullptr);
 
-    QMap<QChar, QString> getXlationMapping() { return m_xlateMap; }
-    void                 setXlationMap(QMap<QChar, QString>*);
+    QMap<QChar, ptblEntryT> getXlationMapping() { return m_xlateMap; }
+    void                    setXlationMap(QMap<QChar, ptblEntryT>*);
 
     ~CEditGlyphDlg();
 
@@ -29,7 +31,7 @@ private:
     QPushButton*    m_btnCancel;
     QPushButton*    m_btnOK;
 
-    QMap<QChar, QString>  m_xlateMap;
+    QMap<QChar, ptblEntryT>  m_xlateMap;
 
 private slots:
     void accept();

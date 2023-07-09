@@ -52,7 +52,6 @@ CIPAConsDlg::CIPAConsDlg(QVector<QChar>* pList, QWidget* parent) : QDialog(paren
     m_btnState.resize(ROWS_1*COLS_1);
     m_btnState.fill(false);
 
-    // TODO process list of vowels already entered and mark them.
     if(pList->size() > 0)
     {
         int ndx;
@@ -72,7 +71,6 @@ CIPAConsDlg::CIPAConsDlg(QVector<QChar>* pList, QWidget* parent) : QDialog(paren
             ++iter;
         }
     }
-    // TODO : setup hover help dialogs... see https://stackoverflow.com/questions/411823/how-do-i-implement-qhoverevent-in-qt
 }
 
 CIPAConsDlg::~CIPAConsDlg()

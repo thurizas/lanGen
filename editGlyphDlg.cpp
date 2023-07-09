@@ -1,5 +1,5 @@
 #include "editGlyphDlg.h"
-
+#include "logger.h"
 
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -11,26 +11,24 @@
 #include <QDebug>
 
 
-CEditGlyphDlg::CEditGlyphDlg( QVector<QChar>* pvowels,  QVector<QChar>* pconsonants, QWidget* parent) : QDialog(parent)
+CEditGlyphDlg::CEditGlyphDlg( QVector<QChar>* pvowels,  QVector<QChar>* pconsonants, QMap<QChar, ptblEntryT>* pxlate, QWidget* parent) : QDialog(parent)
 {
-    setupUI(3);
+    setupUI(cntXlations+1);               // one more column than number of translations.
 
     if(pvowels->size() <= 0)
     {
-        qDebug() << "there are no vowels selected!";
-        QMessageBox::warning(this, "Missing sound inventory", "you have not defined any vowels for your language yet", QMessageBox::Ok);
+        CLogger::getInstance()->outMsg(cmdLine, CLogger::level::WARNING,"you have not defined any vowels for your language yet");
         QDialog::reject();
     }
 
     if(pconsonants->size() <= 0)
     {
-        qDebug() << "there aer no consonants selected";
-        QMessageBox::warning(this, "Missing sound inventory", "you have not defined any consonants for your language yet", QMessageBox::Ok);
+        CLogger::getInstance()->outMsg(cmdLine, CLogger::level::WARNING, "you have not defined any consonants for your language yet");
         QDialog::reject();
     }
-
-     int   row = 0;
-     m_phonemesList->setRowCount(pvowels->size() + pconsonants->size());
+    
+    int   row = 0;
+    m_phonemesList->setRowCount(pvowels->size() + pconsonants->size());
 
     QVector<QChar>::iterator   viter = pvowels->begin();
     while(pvowels->end() != viter)
@@ -45,6 +43,11 @@ CEditGlyphDlg::CEditGlyphDlg( QVector<QChar>* pvowels,  QVector<QChar>* pconsona
     {
         m_phonemesList->setItem(row++, 0, new QTableWidgetItem(QString(*citer)));
         ++citer;
+    }
+
+    if (pxlate->size() > 0)
+    {
+      setXlationMap(pxlate);
     }
 }
 
@@ -155,30 +158,53 @@ void CEditGlyphDlg::buildXlationMap()
 
     for (int ndx = 0; ndx < cntRows; ndx++)
     {
-        QChar    qchPhoneme = m_phonemesList->item(ndx, 0)->text().front();  // get the phoneme, phoneme is a single charater
-        QString  qstrGlyph = m_phonemesList->item(ndx, 1)->text();           // get the glyph
+      ptblEntryT   temp = new tblEntryT{ nullptr, nullptr };                   // entry for the row 
 
-        m_xlateMap.insert(qchPhoneme, qstrGlyph);                            // insert into map
+      QChar    qchPhoneme = m_phonemesList->item(ndx, 0)->text().front();    // get the phoneme, phoneme is a single charater
+      QTableWidgetItem* pItem;
+      
+      for (int xlation = 0; xlation < cntXlations; xlation++)
+      {
+        if (nullptr != (pItem = m_phonemesList->item(ndx, xlation+1)))
+        {
+          temp->xlations[xlation] = new glyphT{ 0, nullptr };            
+          temp->xlations[xlation]->first = pItem->text().length();                  // set length of  translation
+          temp->xlations[xlation]->second = new char[pItem->text().length() + 1];   // allocate space for  translation
+          memset((void*)temp->xlations[xlation]->second, '\0', pItem->text().length() + 1);
+          for (int ndx = 0; ndx < pItem->text().length(); ndx++)
+            temp->xlations[xlation]->second[ndx] = (pItem->text().toStdString().c_str())[ndx];  // copy  translation
+        }
+      }
+
+      m_xlateMap.insert(qchPhoneme, temp);                                  // insert into map
     }
 }
 
 
-void CEditGlyphDlg::setXlationMap(QMap<QChar, QString>* pmap)
+void CEditGlyphDlg::setXlationMap(QMap<QChar, ptblEntryT>* pmap)
 {
-    // TODO : get phoneme from row
-    // TODO : search of phoneme in pmap
-    // TODO : if founded, insert in row.
-
-    int cntRows = m_phonemesList->rowCount();
+      int cntRows = m_phonemesList->rowCount();
 
     for (int ndx = 0; ndx < cntRows; ndx++)
     {
-        QChar  qchPhoneme = m_phonemesList->item(ndx, 0)->text().front();
+        QChar  qchPhoneme = m_phonemesList->item(ndx, 0)->text().front();        // get phoneme from row
         
-        QMap<QChar, QString>::iterator imap =   pmap->find(qchPhoneme);
+        QMap<QChar, ptblEntryT>::iterator imap =   pmap->find(qchPhoneme);       // search of phoneme in pmap
         if (imap != pmap->end())              // found the item
         {
-            m_phonemesList->setItem(ndx, 1, new QTableWidgetItem(imap.value()));
+          for (int jdx = 0; jdx < cntXlations; jdx++)                            // if founded, insert in row.
+          {
+            if (nullptr != imap.value()->xlations[jdx])
+            {
+              QString  xlation;                                                  // translation of phonetic -> normal language.
+              //m_phonemesList->setItem(ndx, jdx + 1, new QTableWidgetItem(imap.value()->xlations[jdx]->second));
+              for (int kdx = 0; kdx < imap.value()->xlations[jdx]->first; kdx++)
+              {
+                xlation.append(imap.value()->xlations[jdx]->second[kdx]);        // append character by character
+              }
+              m_phonemesList->setItem(ndx, jdx + 1, new QTableWidgetItem(xlation));
+            }
+          }
         }
         else
         {
@@ -191,15 +217,15 @@ void CEditGlyphDlg::setXlationMap(QMap<QChar, QString>* pmap)
  
 
 void CEditGlyphDlg::accept()
-{
-    QDialog::accept();
-    buildXlationMap();
+{    
+  buildXlationMap();
+  QDialog::accept();
+
 }
 
 
 
 void CEditGlyphDlg::reject()
 {
-
     QDialog::reject();
 }

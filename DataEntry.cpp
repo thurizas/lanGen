@@ -1,12 +1,20 @@
 #include "DataEntry.h"
 #include "IPAVowelDlg.h"
 #include "IPAConsonantsDlg.h"
+#include "logger.h"
 
 #include <QMainWindow>
 #include <QToolBar>
 #include <QMessageBox>
 #include <QIntValidator>
-#include <QDebug>
+#include <qdebug>
+
+#include <string>
+#include <vector>
+#include <iostream>
+#include <sstream>
+#include <iterator>
+#include <algorithm>
 
 QString classes="C,V,";
 
@@ -107,11 +115,11 @@ void CDataEntry::setupUI()
     m_structureList->setGeometry(QRect(190, 160, 311, 25));
     m_structureList->setFont(font);
 
-    m_btnNewStruct = new QPushButton(this);
-    m_btnNewStruct->setObjectName(QStringLiteral("m_btnNewStruct"));
-    m_btnNewStruct->setGeometry(QRect(510, 160, 101, 23));
-    m_btnNewStruct->setText(QApplication::translate("LanGenClass", "new form", 0));
-    m_btnNewStruct->setFont(font);
+    //m_btnNewStruct = new QPushButton(this);
+    //m_btnNewStruct->setObjectName(QStringLiteral("m_btnNewStruct"));
+    //m_btnNewStruct->setGeometry(QRect(510, 160, 101, 23));
+    //m_btnNewStruct->setText(QApplication::translate("LanGenClass", "new form", 0));
+    //m_btnNewStruct->setFont(font);
 
     //ui elements dealing with sonority rules...
     QLabel *label4 = new QLabel(this);
@@ -168,7 +176,7 @@ void CDataEntry::setupUI()
 
     gridLayout->addWidget(label3, 2, 0, 1, 1);
     gridLayout->addWidget(m_structureList, 2, 1, 1, 5);
-    gridLayout->addWidget(m_btnNewStruct, 2, 6, 1, 1);
+    //gridLayout->addWidget(m_btnNewStruct, 2, 6, 1, 1);
       
     gridLayout->addWidget(label4, 3, 0, 1, 1);
     gridLayout->addWidget(m_sonorityList, 3, 1, 1, 5);
@@ -183,7 +191,7 @@ void CDataEntry::setupUI()
     // setup connections....
     connect(m_btnConsSelect, SIGNAL(clicked()), this, SLOT(onShowConsts()));
     connect(m_btnVowlSelect, SIGNAL(clicked()), this, SLOT(onShowVowels()));
-    connect(m_btnNewStruct,SIGNAL(clicked()),this, SLOT(onNewStruct()));
+    //connect(m_btnNewStruct,SIGNAL(clicked()),this, SLOT(onNewStruct()));
     connect(m_btnNewRule,SIGNAL(clicked()),this, SLOT(onNewRule()));
     connect(m_btnGenerate,SIGNAL(clicked()),this, SLOT(onGenerate()));
 
@@ -245,26 +253,19 @@ void CDataEntry::onNewRule() {qDebug() << "inOnNewRule";}
 /**********************************************************************************************************************
  * function:
  *
- * abstract:  treat syllabel rule as a regex, i.e. (CCC)V(CCC) == (C){0-3}V(C){0-3} and convert to a state machine
- *    
- *                                       /- C -
- *                                /-  C-<      \
- *                          /- C-<        \     \
- *                  start -<      \         \    \
- *                          \-------------------- V ------------------------ end
- *                                                 \       /       /      /
- *                                                  \- C -<       /      /
- *                                                         \-C -<       /
- *                                                                \- C -
- *  use the following syntax:
+ * abstract:  treat syllabel rule as a regex, i.e. (CCC)V(CCC) == (C){0-3}V(C){0-3} use the following syntax:
  *    ( )   : represents an optional componenet
  *    {#,#} : represents repetition
- *    |     : represents alteration
  *    [ ]   : represents grouping
  *
  *    for example (C){1,3}V(C){1,3} represents 1-3 optional consonants, then a vowel, then 1-3 optional consonants
  *                (C)V | V(C) | V   represents optional consonant, then vowel OR vowel optional consonant OR vowel
  *
+ *    The list of rules pipe delimited are parsed and each abstract rule is converted into one or more concrete rules which
+ *    are then added to a pattern list.  While generating words, a pattern is randomly picked for each syllables from 
+ *    the list of patterns.
+ * 
+ * 
  * inputs  :
  *
  * returns :
@@ -275,6 +276,9 @@ void CDataEntry::onGenerate()
 {
     int cntVol = m_vecVowels.size();
     int cntCon = m_vecConsonants.size();
+    int maxSyl = 3;                                 // TODO : read this from dialog
+
+
     if (m_cntGenerate->text().isEmpty())
     {
         QMessageBox::critical(nullptr, "error", "you must provide a number to generate");
@@ -289,82 +293,105 @@ void CDataEntry::onGenerate()
     }
     else                                                 // we have sounds defined for the language....
     {
-        QStringList rules;
+      std::string rule;
+      std::vector<std::string> rules;
+      std::vector<std::string> patterns;
 
-        qDebug() << "generating " << cntGen << " words";
+      std::string l = getRule().toStdString();           // get syllabel definitions from edit control    
+      std::stringstream s(l);
 
-        QString qstrRules = getRule();                   // get the rules from the dialog, eg (C)V | V(C); (C)V(C)
-        //QString qstrRules = QString("(C)V | V(C); (C)V(C)");
-        int nloc = qstrRules.indexOf(';');
-        if (-1 != nloc)                                  // need to tokenize string...
+      while (getline(s, rule, '|'));
+      {
+        rules.push_back(rule);
+      }
+
+      // convert syllabel definitions into list of expanded syllable defs
+      while(rules.size() > 0)
+      {
+        std::string::size_type loc = -1;
+
+          std::string first = rules.at(0);                                  // get the first token
+          rules.erase(rules.begin());                                       // erase first token
+
+          if (std::string::npos != (loc = first.find('(')))
+          {
+            std::string::size_type loc1 = -1;
+            loc1 = first.find(')');
+
+            std::string optVal = first.substr(loc + 1, loc1 - loc - 1);      // get optional part
+
+            std::string p = first; p.replace(loc, loc1 - loc + 1, optVal);   // gen rule with opt part present
+            std::string a = first; a.replace(loc, loc1 - loc + 1, "");       // gen rule with opt part absent
+
+            // place in appropriate list...
+            p.find('(') == std::string::npos ? patterns.push_back(p) : rules.push_back(p);
+            a.find('(') == std::string::npos ? patterns.push_back(a) : rules.push_back(a);
+          }
+          else                                   // if there are no opts push onto rules
+          {
+            patterns.push_back(first);
+          }
+      }
+
+      // trim each sylabel of white space....
+      for (auto s : patterns) 
+      { 
+        s.erase(std::remove_if(s.begin(), s.end(), isspace), s.end()); 
+        CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "%s, ", s.c_str());
+      }
+
+      CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "generating %d words", cntGen);
+      int cntPatterns = patterns.size();
+
+      for (int ndx = 0; ndx < cntGen; ndx++)                                 // for each word to generate
+      {
+        int cntSyl = rand() % maxSyl + 1;                                    // pick a random number of sylabells in range [1, maxSyl]
+       
+        CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "word %d has %d syllables", ndx + 1, cntSyl);
+
+        for (int syl = 0; syl < cntSyl; syl++)
         {
-            rules = qstrRules.split(';');
-        }
-        else                                             // string contains single rule...
-        {
-            rules << qstrRules;
-        }
+          QString phoneticWord = "";
 
-        int cntRules = rules.size();
-        CGenerator    clsGen(cntRules);                                 // initialize generator with number of rules.
+          int patternIndex = rand() % cntPatterns;                           // for each syllable, pick one randomly from list of syllable defs
+          std::string pattern = patterns.at(patternIndex);
+          CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "     syllable %d is %s", syl + 1, pattern.c_str());
 
-        for (int ndx = 0; ndx < cntRules; ndx++)
-        {
-            clsGen.setString(rules.at(ndx));                       // set a rule string in generator
-            clsGen.prepare(ndx);               // prepare the rule, prepend if part of same string
-        }
-
-        for (int ndx = 0; ndx < cntGen; ndx++)
-        {
-            QString     qstrPattern = "";               // gives the pattern to apply for the word.
-            QString     qstrPhonetic = "";              // gives the phonetic spelling for the word.
-            QString     qstrWord = "";                  // gives the spelling for the word in the current glyph system.
-
-            int cntSyl = rand() % 3 + 1;                // pick a random number of sylabells 1 - 3
-
-            // generate sylabells using spaces ...
-            for(int jdx = 0; jdx < cntSyl; jdx++)
-            { 
-                qstrPattern = qstrPattern + clsGen.generate();
-                qstrPattern = qstrPattern + " ";
-            }
-
-            // replace C,V with elements from the set(s)....
-            // TODO : generate a list of all possible sylabells
-
-            int len = qstrPattern.length();
-            for (int ndx = 0; ndx < len; ndx++)
+          for (char c : pattern)                                             // for each syllable, replade C's and V' randomly
+          {
+            switch(c)
             {
-                QChar qchPhoneme;
-                QChar qch = qstrPattern.at(ndx);
-                if (qch == ' ')                    // convert spaces to "/" to denote sylabells...
-                    qstrPhonetic.append('/');
-                else
-                {
-                    if (qch == 'C')               // translate a consonant...
-                    {
-                        qchPhoneme = m_vecConsonants.at(rand() % cntCon);
-                    }
-                    else if(qch == 'V')               // translate a vowel...
-                    {
-                        qchPhoneme = m_vecVowels.at(rand() % cntVol);
-                    }
-                    else
-                    {
-                        // TODO : handle errors
-                    }
+              case 'C':
+                phoneticWord.append(m_vecConsonants.at(rand() % cntCon));
+                break;
 
-                    qstrPhonetic.append(qchPhoneme);      // add phonetic character
+              case 'V':
+                phoneticWord.append(m_vecVowels.at(rand() % cntVol));
+                break;
 
-                    QMap<QChar, QString>::iterator miter  =  m_xlateMap.find(qchPhoneme);
-                    if(miter != m_xlateMap.end())
-                      qstrWord = qstrWord + miter.value();
-
-                }
+              default:
+                CLogger::getInstance()->outMsg(cmdLine, CLogger::level::ERR, "unknow substitution in pattern, %c", c);
             }
+          }
 
-            m_wordList->append(qstrWord + " (" + qstrPhonetic + ")");
+          phoneticWord.append(' ');
+
+          CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "word %d is: %s", ndx + 1, phoneticWord.toStdString().c_str());
+
+          // convert from phonetic spelling to actual spelling and add word to word list.
+          QString word = "";
+          for (QChar qc : phoneticWord)
+          {
+            if (qc == ' ') continue;
+            QMap<QChar, ptblEntryT>::iterator miter = m_xlateMap.find(qc);
+            if (miter != m_xlateMap.end())
+            {
+              word += QString(miter.value()->xlations[0]->second);                       // TODO : this needs to be configurable 
+            }
+          }
+          m_wordList->append(word + " (" + phoneticWord + ")");
         }
+      }
     }
 }
 
@@ -530,20 +557,31 @@ void CDataEntry::clear()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // function for input of data from a file
 
-void CDataEntry::setVowels(QVector<QChar>*)
-{}
+void CDataEntry::setVowels(QVector<QChar>* pvec)
+{
+  for (QChar c : *pvec)
+  {
+    onAddVowel(c);
+  }
+
+}
 
 
-void CDataEntry::setConsonants(QVector<QChar>*)
-{}
+void CDataEntry::setConsonants(QVector<QChar>* pvec)
+{
+  for (QChar c : *pvec)
+  {
+    onAddConsonant(c);
+  }
+}
 
 
-void CDataEntry::setXlationMap(QMap<QChar, QString>* pmap)
+void CDataEntry::setXlationMap(QMap<QChar, ptblEntryT>* pmap)
 {
     if (m_xlateMap.size() > 0)
         m_xlateMap.clear();
 
-    QMap<QChar, QString>::iterator miter = pmap->begin();
+    QMap<QChar, ptblEntryT>::iterator miter = pmap->begin();
 
     while (pmap->end() != miter)
     {

@@ -45,7 +45,6 @@ CIPAVowelDlg::CIPAVowelDlg( QVector<QChar>* pList, QWidget* parent) : QDialog(pa
     m_btnState.resize(ROWS*COLS);
     m_btnState.fill(false);
 
-    // TODO process list of vowels already entered and mark them.
     if(pList->size() > 0)
     {
         int ndx;

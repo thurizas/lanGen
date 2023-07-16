@@ -18,10 +18,12 @@
 
 QString classes="C,V,";
 
-CDataEntry::CDataEntry(QWidget *parent) : QWidget(parent), m_pParent(parent)
+CDataEntry::CDataEntry(QWidget *parent) : QWidget(parent), m_pParent(parent), m_spw(3)
 {
     srand(time(NULL));
     setupUI();
+
+    m_syllablesPerWord->setText(QString("%1").arg(m_spw));
     
 }
 
@@ -112,14 +114,20 @@ void CDataEntry::setupUI()
                
     m_structureList = new QLineEdit(this);
     m_structureList->setObjectName(QStringLiteral("m_structureList"));
-    m_structureList->setGeometry(QRect(190, 160, 311, 25));
+    m_structureList->setGeometry(QRect(190, 160, 200, 25));
     m_structureList->setFont(font);
 
-    //m_btnNewStruct = new QPushButton(this);
-    //m_btnNewStruct->setObjectName(QStringLiteral("m_btnNewStruct"));
-    //m_btnNewStruct->setGeometry(QRect(510, 160, 101, 23));
-    //m_btnNewStruct->setText(QApplication::translate("LanGenClass", "new form", 0));
-    //m_btnNewStruct->setFont(font);
+    // ui elements dealing with syllables per word... (add 40 to y-coord....)
+    QLabel* label6 = new QLabel(this);
+    label6->setObjectName("label6");
+    label6->setGeometry(QRect(300, 160, 200, 21));
+    label6->setText("Syllables/Word:");
+    label6->setFont(font);
+
+    m_syllablesPerWord = new QLineEdit(this);
+    m_syllablesPerWord->setObjectName(QStringLiteral("m_syllablesPerWord"));
+    m_syllablesPerWord->setGeometry(QRect(510, 160, 50, 25));
+
 
     //ui elements dealing with sonority rules...
     QLabel *label4 = new QLabel(this);
@@ -175,8 +183,9 @@ void CDataEntry::setupUI()
     gridLayout->addWidget(m_btnVowlSelect, 1, 6, 1, 1);
 
     gridLayout->addWidget(label3, 2, 0, 1, 1);
-    gridLayout->addWidget(m_structureList, 2, 1, 1, 5);
-    //gridLayout->addWidget(m_btnNewStruct, 2, 6, 1, 1);
+    gridLayout->addWidget(m_structureList, 2, 1, 1, 3);
+    gridLayout->addWidget(label6, 2, 4, 1, 1);
+    gridLayout->addWidget(m_syllablesPerWord, 2, 6, 1, 1);
       
     gridLayout->addWidget(label4, 3, 0, 1, 1);
     gridLayout->addWidget(m_sonorityList, 3, 1, 1, 5);
@@ -191,7 +200,6 @@ void CDataEntry::setupUI()
     // setup connections....
     connect(m_btnConsSelect, SIGNAL(clicked()), this, SLOT(onShowConsts()));
     connect(m_btnVowlSelect, SIGNAL(clicked()), this, SLOT(onShowVowels()));
-    //connect(m_btnNewStruct,SIGNAL(clicked()),this, SLOT(onNewStruct()));
     connect(m_btnNewRule,SIGNAL(clicked()),this, SLOT(onNewRule()));
     connect(m_btnGenerate,SIGNAL(clicked()),this, SLOT(onGenerate()));
 
@@ -276,7 +284,7 @@ void CDataEntry::onGenerate()
 {
     int cntVol = m_vecVowels.size();
     int cntCon = m_vecConsonants.size();
-    int maxSyl = 3;                                 // TODO : read this from dialog
+    int maxSyl = m_syllablesPerWord->text().toInt();       //m_spw;                                 // TODO : read this from dialog
 
 
     if (m_cntGenerate->text().isEmpty())
@@ -375,8 +383,7 @@ void CDataEntry::onGenerate()
           }
 
           phoneticWord.append(' ');
-
-          CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "word %d is: %s", ndx + 1, phoneticWord.toStdString().c_str());
+          int len = phoneticWord.length();
 
           // convert from phonetic spelling to actual spelling and add word to word list.
           QString word = "";

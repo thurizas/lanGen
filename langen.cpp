@@ -22,9 +22,6 @@
 
 #include <errno.h>
 
-// TODO : add QPhonome class to allow from 2 / 3 character symbols -- can we do....
-// TODO : make edit boxes editable while keeping updating IPA charts
-
 LanGen::LanGen(QWidget *parent) : QMainWindow(parent), m_qstrFileName("")
 {
     setupUI();

@@ -56,12 +56,12 @@ private:
     QLineEdit*     m_consonantList;
     QLineEdit*     m_vowelList;
     QLineEdit*     m_structureList;
+    QLineEdit*     m_syllablesPerWord;
     QLineEdit*     m_sonorityList;
     QLineEdit*     m_cntGenerate;
     QTextBrowser*  m_wordList;
     
     QPushButton*   m_btnVowlSelect;
-    //QPushButton*   m_btnNewStruct;
     QPushButton*   m_btnNewRule;
     QPushButton*   m_btnGenerate;
     QPushButton*   m_btnConsSelect;
@@ -70,6 +70,7 @@ private:
     QVector<QChar>          m_vecVowels;
     QVector<QString>        m_vecSyllabols;
     QMap<QChar, ptblEntryT> m_xlateMap;
+    uint8_t                 m_spw;               // syllables per word, default is three
 };
 
 #endif

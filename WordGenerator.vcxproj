@@ -130,6 +130,10 @@
     <ClInclude Include="datafile.h" />
     <ClInclude Include="logger.h" />
     <ClInclude Include="notes.h" />
+    <ClInclude Include="x64\Debug\uic\ui_glypheditDlg.h" />
+    <ClInclude Include="x64\Debug\uic\ui_IPAVowelDlg.h" />
+    <ClInclude Include="x64\Debug\uic\ui_langen.h" />
+    <ClInclude Include="x64\Debug\uic\ui_mainWindow.h" />
     <ClInclude Include="XGetopt.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

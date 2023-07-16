@@ -238,7 +238,8 @@ QMap<QChar, ptblEntryT> datafile::readGlyphs()
         else                                                        // we have data
         {
           //temp->xlations[ndx]->second = new char[len];
-          char* buf = new char[len];
+          char* buf = new char[len+1];
+          memset((void*)buf, '\0', len + 1);
           m_in->readRawData((char*)buf, len);
           temp->xlations[ndx] = new glyphT{ 0, nullptr };
           temp->xlations[ndx]->first = len;

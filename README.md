@@ -22,3 +22,19 @@ The process for generating a word is:
 The phonetic description of the language can be saved (and reloaded from a file), with the default extention of '.pho'
 
 The word list, while displayed on the user interface, can also be saved for future use.
+
+TODO:
+1) allow for setting preference of syllables - for example a language might prefer CV or VC syllables and only infrequently have CVC syllables.  On thought would be to include a percentage, such as
+   (C{15})V{5}(C{25}), which would generate V{5}, C{15}V{5}, V{5}C{25}, and C{15}V{5}C{25} and then the individual weights are summed to yield V{5}, CV{20}, VC{30}, and CVC{45} which says that a syllable
+   with a structure of CV is four times more likely the a syllable with a structure of V.  Still missing is a way to decrement the weight applied to a syllable, i.e. to yield something like
+   V{5}, CV{40}, VC{40}, and CVC{15}.
+2) Add additional support for different writing systems,
+   * abjad - writting system where consonants are represented and vowels are infered by the reader.  If necessary vowels can be represented by diacritics markings.  Examples of this writting system
+             are Arabic and Aramaic.
+   * abugida - writting system where consonant-vowel sequences are expressed as a unit.  Each unit is based on the consonant sound with an auxillary symbol for the vowel.  An example would be 
+               any writting system derived from Brahmi script, such as devanagari
+   * alphabet - each sound has one or more letters (also called graphemes) associated with it.  Examples of this writting system are Latin, Cyrillic, and Greek (done)
+   * logogram - a unique symbol (logogram, logograph, or lexigraph) is used to represent a single word.  Examples of this writting system are Egyptian hieroglyphs, Linear A, Linear B, and Sawndip
+   * Syllabary - Each syllable (or mora - a timing unit in the language) is represented by a single grapheme.  Languages that use this writting system include Cherokee, Cypriot, and Kana
+3) Specify weights for number of syllables in a word.  Might tie in with #1.
+   

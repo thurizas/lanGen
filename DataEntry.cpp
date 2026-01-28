@@ -284,7 +284,7 @@ void CDataEntry::onGenerate()
 {
     int cntVol = m_vecVowels.size();
     int cntCon = m_vecConsonants.size();
-    int maxSyl = m_syllablesPerWord->text().toInt();       //m_spw;                                 // TODO : read this from dialog
+    int maxSyl = m_syllablesPerWord->text().toInt();       
 
 
     if (m_cntGenerate->text().isEmpty())
@@ -306,9 +306,9 @@ void CDataEntry::onGenerate()
       std::vector<std::string> patterns;
 
       std::string l = getRule().toStdString();           // get syllabel definitions from edit control    
-      std::stringstream s(l);
+      std::istringstream s(l);
 
-      while (getline(s, rule, '|'));
+      while (std::getline(s, rule, '|'))
       {
         rules.push_back(rule);
       }
@@ -348,57 +348,75 @@ void CDataEntry::onGenerate()
         CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "%s, ", s.c_str());
       }
 
+      // remove duplicates from patterns list
+      std::sort(patterns.begin(), patterns.end());
+      auto last = std::unique(patterns.begin(), patterns.end());
+      patterns.erase(last, patterns.end());
+
       CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "generating %d words", cntGen);
       int cntPatterns = patterns.size();
 
       for (int ndx = 0; ndx < cntGen; ndx++)                                 // for each word to generate
       {
         int cntSyl = rand() % maxSyl + 1;                                    // pick a random number of sylabells in range [1, maxSyl]
+
+        QVector<QString>  syllabels;
        
         CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "word %d has %d syllables", ndx + 1, cntSyl);
 
         for (int syl = 0; syl < cntSyl; syl++)
         {
-          QString phoneticWord = "";
+          QString syllabel = "";
 
           int patternIndex = rand() % cntPatterns;                           // for each syllable, pick one randomly from list of syllable defs
           std::string pattern = patterns.at(patternIndex);
-          CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "     syllable %d is %s", syl + 1, pattern.c_str());
+
 
           for (char c : pattern)                                             // for each syllable, replade C's and V' randomly
           {
-            switch(c)
+            switch (c)
             {
-              case 'C':
-                phoneticWord.append(m_vecConsonants.at(rand() % cntCon));
-                break;
+            case 'C':
+              syllabel.append(m_vecConsonants.at(rand() % cntCon));
+              break;
 
-              case 'V':
-                phoneticWord.append(m_vecVowels.at(rand() % cntVol));
-                break;
+            case 'V':
+              syllabel.append(m_vecVowels.at(rand() % cntVol));
+              break;
 
-              default:
-                CLogger::getInstance()->outMsg(cmdLine, CLogger::level::ERR, "unknow substitution in pattern, %c", c);
+            default:
+              CLogger::getInstance()->outMsg(cmdLine, CLogger::level::ERR, "unknow substitution in pattern, %c", c);
             }
           }
 
-          phoneticWord.append(' ');
-          int len = phoneticWord.length();
+          CLogger::getInstance()->outMsg(cmdLine, CLogger::level::NOTICE, "     syllable %d is %s - %s", syl + 1, pattern.c_str(), syllabel.toStdString().c_str());
+          syllabels.push_back(syllabel);
 
-          // convert from phonetic spelling to actual spelling and add word to word list.
-          QString word = "";
-          for (QChar qc : phoneticWord)
+        } // end of generate word loop
+      
+        QString phWord;
+        QString word;
+        for (QString s : syllabels)
+        {
+          phWord = phWord + s + "-" ;
+
+          for (QChar qc : s)
           {
             if (qc == ' ') continue;
             QMap<QChar, ptblEntryT>::iterator miter = m_xlateMap.find(qc);
-            if (miter != m_xlateMap.end())
-            {
-              word += QString(miter.value()->xlations[0]->second);                       // TODO : this needs to be configurable 
-            }
+            if (miter != m_xlateMap.end()) { word += QString(miter.value()->xlations[0]->second); }
           }
-          m_wordList->append(word + " (" + phoneticWord + ")");
         }
-      }
+
+        syllabels.clear();
+        m_wordList->append(word + QString("(") + phWord + QString(")"));
+
+      } // end of generate words loop
+      
+
+
+
+
     }
 }
 

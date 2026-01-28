@@ -331,11 +331,12 @@ void LanGen::onFileSaveWords()
         if (outFile.open(QIODevice::WriteOnly | QIODevice::Truncate))
         {
             QTextStream out(&outFile);
-            out.setCodec("UTF-8");           // so we can print unicode characters
+            //out.setCodec("UTF-8");                                  // so we can print unicode characters
+            out.setEncoding(QStringConverter::Utf8);
             
 
             QStringList words = m_pWidget->getText().split('\n');
-            words = words.toSet().toList();                        // remove duplicate entries...
+            words.removeDuplicates();                              // remove duplicate entries...
             words.sort();                                          // so in alphabetical order
 
             QStringList::iterator  qsliter;
@@ -368,7 +369,9 @@ void LanGen::onFileSaveWords()
  *********************************************************************************************************************/
 void LanGen::onAlphabetGlyphs()
 {
-    CEditGlyphDlg dlg(m_pWidget->getVowels(), m_pWidget->getConsonants(), &m_pWidget->getXlationMap());
+    QMap<QChar, ptblEntryT>  xlationMap = m_pWidget->getXlationMap();
+
+    CEditGlyphDlg dlg(m_pWidget->getVowels(), m_pWidget->getConsonants(), &xlationMap);
 
     //if (m_pWidget->getXlationMap().size() > 0)                        // we have an xlation map
     //    dlg.setXlationMap(&(m_pWidget->getXlationMap()));
@@ -401,9 +404,11 @@ void LanGen::onSyllabelGlyphs()
 {
     qDebug() << "in onSyllabelGlyphs";
 
+    QMap<QChar, ptblEntryT>  xlationMap = m_pWidget->getXlationMap();
+
     // TODO : generate list of syllabels.
 
-    CEditGlyphDlg dlg(m_pWidget->getVowels(), m_pWidget->getConsonants(), &m_pWidget->getXlationMap());
+    CEditGlyphDlg dlg(m_pWidget->getVowels(), m_pWidget->getConsonants(), &xlationMap);
     if(QDialog::Accepted == dlg.exec())
     { 
         // TODO : build translation map                   

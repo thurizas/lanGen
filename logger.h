@@ -35,25 +35,23 @@
 #ifndef _logger_h_
 #define _logger_h_
 
-#include "procgen_priv.h"
-
 #include <stdint.h>
 #include <cstdint>
 #include <map>
 #include <functional>
 
 // predefined output identifiers
-DLLExport const uint32_t cmdLine = 0;
-DLLExport const uint32_t fileLine = 1;
+static uint32_t cmdLine = 0;
+static uint32_t fileLine = 1;
 
 typedef void (*fnct)(int, char*);          //std::function<void(int, char*)>    fnct;
 typedef std::map<int, fnct>           mapType;
 
 //predefined output identiferis
-DLLExport void cmdOut(int, char*);
-DLLExport void cmdColorOut(int, char*);
+void cmdOut(int, char*);
+void cmdColorOut(int, char*);
 
-class DLLExport CLogger
+class CLogger
 {
 public:
   // set success level to be very large, that way it will always be printed out, regardless of output setting.

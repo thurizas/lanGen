@@ -22,8 +22,8 @@ void deallocConsole();
 void displayVersion(const char*);
 void displayHelp(const char*);
 
-void cmdOut(char*);              // simple command line output for debugging
-void fileOut(char*);
+//void cmdOut(char*);              // simple command line output for debugging
+void fileOut(int level, char* msg);
 
 std::ofstream debugLog;
 
@@ -146,12 +146,7 @@ void deallocConsole()
 #endif
 
 
-void cmdOut(char* msg)
-{
-  std::cout << msg << std::endl;
-}
-
-void fileOut(char* msg)
+void fileOut(int level, char* msg)
 {
   debugLog << msg << std::endl;
 }
